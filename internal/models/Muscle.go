@@ -9,9 +9,11 @@ type Muscle struct {
 }
 
 type Workout struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Sets []Set  `json:"sets"`
+	ID        string    `json:"id"`
+	MuscleID  string    `json:"muscleId"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+	Sets      []Set     `json:"sets"`
 }
 
 type Set struct {
