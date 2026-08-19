@@ -18,9 +18,11 @@ type Workout struct {
 
 type Set struct {
 	ID                   string                 `json:"id"`
+	WorkoutID            string                 `json:"workoutId"`
 	Done                 bool                   `json:"done"`
-	Reps                 int                    `json:"rep"`
+	Reps                 int                    `json:"reps"`
 	Weight               float64                `json:"weight"`
+	CreatedAt            time.Time              `json:"createdAt"`
 	HistoryRepsAndWeight []HistoryRepsAndWeight `json:"historyRepsAndWeights"`
 }
 

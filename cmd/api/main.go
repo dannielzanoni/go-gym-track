@@ -39,9 +39,11 @@ func main() {
 
 	muscleRepository := repositories.NewMuscleRepository(pool)
 	workoutRepository := repositories.NewWorkoutRepository(pool)
+	workoutSetRepository := repositories.NewWorkoutSetRepository(pool)
 
 	muscleHandler := handlers.NewMuscleHandler(muscleRepository)
 	workoutHandler := handlers.NewWorkoutHandler(workoutRepository)
+	workoutSetHandler := handlers.NewWorkoutSetHandler(workoutSetRepository)
 
 	router := gin.Default()
 
@@ -50,6 +52,10 @@ func main() {
 
 	router.GET("/workouts", workoutHandler.GetWorkouts)
 	router.POST("/workout", workoutHandler.CreateWorkout)
+
+	router.GET("/workout_sets", workoutSetHandler.GetWorkoutSets)
+	router.GET("/workout_set/:id", workoutSetHandler.GetWorkoutSetByID)
+	router.POST("/workout_set", workoutSetHandler.CreateWorkoutSet)
 
 	if err := router.Run("localhost:8080"); err != nil {
 		log.Fatalf("start server: %v", err)
