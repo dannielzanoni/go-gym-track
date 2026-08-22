@@ -2,15 +2,16 @@
 
 ## Missão
 
-Administrar os modelos de músculos, exercícios, séries e histórico, preparando a migração do armazenamento local para API.
+Administrar os modelos de músculos, exercícios, séries, sessões e histórico durante a migração para a API Go.
 
 ## Responsabilidades
 
 - Manter tipos em `src/types/gym.ts`.
 - Centralizar persistência em `src/services`.
-- Versionar alterações incompatíveis no formato salvo.
 - Preservar o histórico por número de série e por exercício.
+- Separar DTOs da API dos tipos usados pelos componentes.
+- Garantir que nenhum token ou dado de treino seja persistido em Web Storage.
 
-## Migração futura
+## Plano vigente
 
-Implemente um serviço HTTP com a mesma fronteira usada pelo contexto. Depois, troque o adaptador local sem espalhar chamadas de rede pela interface.
+Seguir `api-auth-plan.md`. O banco será a única fonte de verdade e o conteúdo existente no `localStorage` será descartado. Chamadas HTTP não devem ser espalhadas por páginas ou componentes.
