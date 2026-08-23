@@ -1,0 +1,33 @@
+app = "go-gym-track-api"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "10000"
+  APP_ENV = "production"
+  COOKIE_SECURE = "true"
+  RUN_MIGRATIONS = "false"
+  JWT_ISSUER = "go-gym-track"
+  JWT_AUDIENCE = "go-gym-track-api"
+  ACCESS_TOKEN_TTL = "15m"
+  REFRESH_TOKEN_TTL = "720h"
+
+[http_service]
+  internal_port = 10000
+  force_https = true
+  auto_start_machines = true
+  auto_stop_machines = "stop"
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/healthz"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

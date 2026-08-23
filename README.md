@@ -135,6 +135,28 @@ Depois que a Vercel gerar a URL definitiva, confirme esse valor em
 `CORS_ALLOWED_ORIGINS` no Render e faça um novo deploy da API. URLs variáveis de
 preview precisam ser adicionadas explicitamente caso também devam acessar a API.
 
+### Alternativa: API no Fly.io
+
+O [`fly.toml`](fly.toml) usa o mesmo `Dockerfile`, região de São Paulo (`gru`),
+porta interna `10000` e health check em `/healthz`. Antes do primeiro deploy,
+confirme se o nome global definido em `app` está disponível e altere-o se
+necessário.
+
+```powershell
+fly auth login
+fly launch --no-deploy
+
+fly secrets set DATABASE_URL="postgresql://.../postgres?sslmode=require"
+fly secrets set JWT_SIGNING_KEY="SEGREDO_COM_PELO_MENOS_32_CARACTERES"
+fly secrets set CORS_ALLOWED_ORIGINS="https://seu-front.vercel.app"
+
+fly deploy
+```
+
+Com `min_machines_running = 0`, a máquina pode parar sem tráfego e reiniciar na
+próxima requisição. Para evitar cold start, use `1`, considerando o custo de
+manter uma máquina ativa.
+
 ## Validação
 
 ```powershell
