@@ -1,12 +1,31 @@
-# Plano de integração API e autenticação
+# Integração API e autenticação
+
+## Status em 22/08/2026
+
+O contrato deste documento foi implementado no backend e no frontend:
+
+- migrations e domínio multiusuário;
+- proteção das tabelas no Supabase com RLS e revogação dos papéis da Data API;
+- cadastro, login, refresh rotativo, logout e rota protegida `me`;
+- API versionada da ficha e das sessões de treino;
+- cliente React com access token em memória e refresh single-flight;
+- rotas de autenticação, CRUD/reorder e execução do treino via API;
+- remoção do seed e de toda persistência em Web Storage;
+- testes unitários de senha, JWT, configuração, middleware, validação de cadastro,
+  mapeamento de DTOs e refresh single-flight no cliente HTTP.
+
+Lint, build do frontend e testes Go passam. A migration ainda deve ser validada
+em uma instância PostgreSQL isolada antes de ser aplicada ao banco do usuário;
+testes de integração com PostgreSQL e E2E continuam sendo a próxima camada de
+qualidade recomendada.
 
 ## Objetivo
 
 Substituir completamente o estado persistido em `localStorage` por uma API Go
 autenticada, com dados isolados por usuário e persistidos no PostgreSQL.
 
-Este documento é um plano de implementação. Ele não descreve o estado atual como
-se a integração já existisse.
+Este documento nasceu como plano e agora também registra o contrato implementado
+e as decisões que devem ser preservadas em mudanças futuras.
 
 ## Decisões
 
@@ -26,7 +45,7 @@ se a integração já existisse.
 - Finalizar um treino será uma operação transacional e idempotente por estado da
   sessão: uma sessão já concluída não poderá ser concluída novamente.
 
-## Estado atual
+## Estado anterior ao trabalho
 
 ### Frontend
 

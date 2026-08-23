@@ -15,7 +15,7 @@ type Props = {
   exercise: Exercise
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (exercise: Exercise) => void
+  onSave: (exercise: Exercise) => Promise<void> | void
 }
 
 function numberValue(value: string) {
@@ -26,6 +26,7 @@ function numberValue(value: string) {
 export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) {
   const [draft, setDraft] = useState<Exercise>(() => structuredClone(exercise))
   const [chartSetId, setChartSetId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   function updateSet(setId: string, changes: Partial<Exercise["sets"][number]>) {
     setDraft((current) => ({
@@ -34,10 +35,17 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
     }))
   }
 
-  function save() {
-    onSave(draft)
-    onOpenChange(false)
-    toast.success("Exercício atualizado")
+  async function save() {
+    setSaving(true)
+    try {
+      await onSave(draft)
+      onOpenChange(false)
+      toast.success("Exercício atualizado")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o exercício.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -109,8 +117,8 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
         </div>
 
         <DialogFooter className="m-0 grid grid-cols-2 px-3 py-3 sm:flex sm:px-6 sm:py-4">
-          <Button className="h-11 w-full sm:h-8 sm:w-auto" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button className="h-11 w-full sm:h-8 sm:w-auto" onClick={save}>Salvar alterações</Button>
+          <Button className="h-11 w-full sm:h-8 sm:w-auto" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button className="h-11 w-full sm:h-8 sm:w-auto" disabled={saving} onClick={() => void save()}>{saving ? "Salvando..." : "Salvar alterações"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

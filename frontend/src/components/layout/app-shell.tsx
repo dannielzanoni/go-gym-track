@@ -1,5 +1,7 @@
-import { Dumbbell, House, Settings2 } from "lucide-react"
+import { Dumbbell, House, LogOut, Settings2 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/features/auth/context/auth-context"
 import { cn } from "@/lib/utils"
 
 const navigation = [
@@ -8,6 +10,8 @@ const navigation = [
 ]
 
 export function AppShell() {
+  const { user, logout } = useAuth()
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-white/6 bg-background/82 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
@@ -19,21 +23,27 @@ export function AppShell() {
             <span className="font-display text-lg font-bold tracking-tight">GYM<span className="text-primary">TRACK</span></span>
           </NavLink>
 
-          <nav className="hidden items-center rounded-xl border border-white/6 bg-card/70 p-1 sm:flex" aria-label="Navegação principal">
-            {navigation.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) => cn(
-                  "flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors",
-                  isActive && "bg-white/7 text-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                {label}
-              </NavLink>
-            ))}
-          </nav>
+          <Button className="sm:hidden" variant="ghost" size="icon" onClick={() => void logout()} aria-label="Sair"><LogOut /></Button>
+
+          <div className="hidden items-center gap-2 sm:flex">
+            <nav className="flex items-center rounded-xl border border-white/6 bg-card/70 p-1" aria-label="Navegação principal">
+              {navigation.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) => cn(
+                    "flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors",
+                    isActive && "bg-white/7 text-foreground",
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+            <span className="max-w-36 truncate px-2 text-xs text-muted-foreground">{user?.displayName}</span>
+            <Button variant="ghost" size="icon" onClick={() => void logout()} aria-label="Sair"><LogOut /></Button>
+          </div>
         </div>
       </header>
 

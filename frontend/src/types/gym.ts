@@ -6,6 +6,7 @@ export type SetHistory = {
 
 export type ExerciseSet = {
   id: string
+  position: number
   reps: number
   weight: number
   completed: boolean
@@ -15,35 +16,37 @@ export type ExerciseSet = {
 export type Exercise = {
   id: string
   name: string
+  position: number
   sets: ExerciseSet[]
 }
 
 export type Muscle = {
   id: string
   name: string
+  position: number
   lastWorkoutAt: string | null
   exercises: Exercise[]
 }
 
-export type WorkoutSet = {
-  exerciseId: string
+export type WorkoutSessionSet = {
+  id: string
+  exerciseId: string | null
+  exerciseSetId: string | null
   exerciseName: string
-  setId: string
+  exercisePosition: number
   setNumber: number
   reps: number
   weight: number
+  completed: boolean
+  completedAt: string | null
 }
 
-export type Workout = {
+export type WorkoutSession = {
   id: string
-  muscleId: string
+  muscleId: string | null
   muscleName: string
-  completedAt: string
-  sets: WorkoutSet[]
-}
-
-export type GymState = {
-  version: 1
-  muscles: Muscle[]
-  workouts: Workout[]
+  status: "active" | "completed" | "cancelled"
+  startedAt: string
+  completedAt: string | null
+  sets: WorkoutSessionSet[]
 }

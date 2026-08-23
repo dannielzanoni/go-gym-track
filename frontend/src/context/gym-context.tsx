@@ -1,95 +1,62 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import { gymStorage } from "@/services/gym-storage"
-import type { Exercise, ExerciseSet, GymState, Muscle, Workout } from "@/types/gym"
+import { createContext, useContext, type ReactNode } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useAuth } from "@/features/auth/context/auth-context"
+import { gymService, type ExerciseSetInput } from "@/features/gym/api/gym-service"
+import type { Muscle } from "@/types/gym"
 
 type GymContextValue = {
-  state: GymState
-  setMuscles: (updater: (muscles: Muscle[]) => Muscle[]) => void
-  updateExercise: (muscleId: string, exercise: Exercise) => void
-  updateSet: (muscleId: string, exerciseId: string, set: ExerciseSet) => void
-  finishWorkout: (muscleId: string) => Workout | null
+  muscles: Muscle[]
+  loading: boolean
+  error: Error | null
+  refresh: () => Promise<void>
+  createMuscle: (name: string) => Promise<string>
+  updateMuscle: (id: string, name: string) => Promise<void>
+  deleteMuscle: (id: string) => Promise<void>
+  reorderMuscles: (orderedIds: string[]) => Promise<void>
+  createExercise: (muscleId: string, name: string, sets: ExerciseSetInput[]) => Promise<void>
+  updateExercise: (id: string, name: string) => Promise<void>
+  deleteExercise: (id: string) => Promise<void>
+  reorderExercises: (muscleId: string, orderedIds: string[]) => Promise<void>
+  createExerciseSet: (exerciseId: string, input: ExerciseSetInput) => Promise<void>
+  updateExerciseSet: (id: string, input: ExerciseSetInput) => Promise<void>
+  deleteExerciseSet: (id: string) => Promise<void>
+  reorderExerciseSets: (exerciseId: string, orderedIds: string[]) => Promise<void>
 }
 
 const GymContext = createContext<GymContextValue | null>(null)
 
 export function GymProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<GymState>(() => gymStorage.load())
+  const { status, user } = useAuth()
+  const query = useQuery({
+    queryKey: ["training-plan", user?.id],
+    queryFn: ({ signal }) => gymService.getTrainingPlan(signal),
+    enabled: status === "authenticated" && Boolean(user),
+  })
 
-  useEffect(() => {
-    gymStorage.save(state)
-  }, [state])
-
-  function setMuscles(updater: (muscles: Muscle[]) => Muscle[]) {
-    setState((current) => ({ ...current, muscles: updater(current.muscles) }))
+  async function mutate<T>(operation: () => Promise<T>) {
+    const result = await operation()
+    await query.refetch()
+    return result
   }
 
-  function updateExercise(muscleId: string, exercise: Exercise) {
-    setMuscles((muscles) => muscles.map((muscle) => muscle.id === muscleId
-      ? { ...muscle, exercises: muscle.exercises.map((item) => item.id === exercise.id ? exercise : item) }
-      : muscle))
+  const value: GymContextValue = {
+    muscles: query.data ?? [],
+    loading: status === "authenticated" && query.isLoading,
+    error: query.error,
+    refresh: async () => { await query.refetch() },
+    createMuscle: async (name) => (await mutate(() => gymService.createMuscle(name))).id,
+    updateMuscle: async (id, name) => { await mutate(() => gymService.updateMuscle(id, name)) },
+    deleteMuscle: async (id) => { await mutate(() => gymService.deleteMuscle(id)) },
+    reorderMuscles: async (orderedIds) => { await mutate(() => gymService.reorderMuscles(orderedIds)) },
+    createExercise: async (muscleId, name, sets) => { await mutate(() => gymService.createExercise(muscleId, name, sets)) },
+    updateExercise: async (id, name) => { await mutate(() => gymService.updateExercise(id, name)) },
+    deleteExercise: async (id) => { await mutate(() => gymService.deleteExercise(id)) },
+    reorderExercises: async (muscleId, orderedIds) => { await mutate(() => gymService.reorderExercises(muscleId, orderedIds)) },
+    createExerciseSet: async (exerciseId, input) => { await mutate(() => gymService.createExerciseSet(exerciseId, input)) },
+    updateExerciseSet: async (id, input) => { await mutate(() => gymService.updateExerciseSet(id, input)) },
+    deleteExerciseSet: async (id) => { await mutate(() => gymService.deleteExerciseSet(id)) },
+    reorderExerciseSets: async (exerciseId, orderedIds) => { await mutate(() => gymService.reorderExerciseSets(exerciseId, orderedIds)) },
   }
-
-  function updateSet(muscleId: string, exerciseId: string, updatedSet: ExerciseSet) {
-    setMuscles((muscles) => muscles.map((muscle) => muscle.id === muscleId
-      ? {
-          ...muscle,
-          exercises: muscle.exercises.map((exercise) => exercise.id === exerciseId
-            ? { ...exercise, sets: exercise.sets.map((set) => set.id === updatedSet.id ? updatedSet : set) }
-            : exercise),
-        }
-      : muscle))
-  }
-
-  function finishWorkout(muscleId: string) {
-    const muscle = state.muscles.find((item) => item.id === muscleId)
-    if (!muscle) return null
-
-    const completed = muscle.exercises.flatMap((exercise) => exercise.sets
-      .map((set, index) => ({ exercise, set, index }))
-      .filter(({ set }) => set.completed))
-    if (completed.length < 10) return null
-
-    const completedAt = new Date().toISOString()
-    const workout: Workout = {
-      id: `workout-${Date.now()}`,
-      muscleId: muscle.id,
-      muscleName: muscle.name,
-      completedAt,
-      sets: completed.map(({ exercise, set, index }) => ({
-        exerciseId: exercise.id,
-        exerciseName: exercise.name,
-        setId: set.id,
-        setNumber: index + 1,
-        reps: set.reps,
-        weight: set.weight,
-      })),
-    }
-
-    setState((current) => ({
-      ...current,
-      workouts: [workout, ...current.workouts],
-      muscles: current.muscles.map((item) => item.id === muscleId
-        ? {
-            ...item,
-            lastWorkoutAt: completedAt,
-            exercises: item.exercises.map((exercise) => ({
-              ...exercise,
-              sets: exercise.sets.map((set) => set.completed
-                ? {
-                    ...set,
-                    completed: false,
-                    history: [...set.history, { date: completedAt, reps: set.reps, weight: set.weight }],
-                  }
-                : set),
-            })),
-          }
-        : item),
-    }))
-
-    return workout
-  }
-
-  const value = { state, setMuscles, updateExercise, updateSet, finishWorkout }
 
   return <GymContext.Provider value={value}>{children}</GymContext.Provider>
 }
