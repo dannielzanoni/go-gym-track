@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"go-gym-track/internal/repositories"
-	"log"
 	"net/http"
-	"strings"
+
+	"go-gym-track/internal/apperror"
+	"go-gym-track/internal/middleware"
+	"go-gym-track/internal/repositories"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,53 +18,93 @@ func NewMuscleHandler(repository *repositories.MuscleRepository) *MuscleHandler 
 	return &MuscleHandler{repository: repository}
 }
 
-type createMuscleRequest struct {
+type nameRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
-func (h *MuscleHandler) GetMuscles(c *gin.Context) {
-	muscles, err := h.repository.GetAll(c.Request.Context())
-	if err != nil {
-		log.Printf("get muscles: %v", err)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not get muscles",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, muscles)
+type reorderRequest struct {
+	OrderedIDs []string `json:"orderedIds" binding:"required"`
 }
 
-func (h *MuscleHandler) CreateMuscle(c *gin.Context) {
-	var request createMuscleRequest
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "name is required",
-		})
-		return
-	}
-
-	name := strings.TrimSpace(request.Name)
-	if name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "name cannot be empty",
-		})
-		return
-	}
-	muscle, err := h.repository.Create(
-		c.Request.Context(),
-		name,
-	)
+func (h *MuscleHandler) GetAll(c *gin.Context) {
+	muscles, err := h.repository.GetAll(c.Request.Context(), middleware.UserID(c))
 	if err != nil {
-		log.Printf("create muscle: %v", err)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "could not create muscle",
-		})
+		respondError(c, err)
 		return
 	}
+	respondData(c, http.StatusOK, muscles)
+}
 
-	c.JSON(http.StatusCreated, muscle)
+func (h *MuscleHandler) Create(c *gin.Context) {
+	var request nameRequest
+	if !bindJSON(c, &request) {
+		return
+	}
+	muscle, err := h.repository.Create(c.Request.Context(), middleware.UserID(c), request.Name)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respondData(c, http.StatusCreated, muscle)
+}
+
+func (h *MuscleHandler) Update(c *gin.Context) {
+	id := c.Param("muscleId")
+	if !validID(id) {
+		respondError(c, apperror.ErrValidation)
+		return
+	}
+	var request nameRequest
+	if !bindJSON(c, &request) {
+		return
+	}
+	muscle, err := h.repository.Update(c.Request.Context(), middleware.UserID(c), id, request.Name)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respondData(c, http.StatusOK, muscle)
+}
+
+func (h *MuscleHandler) Delete(c *gin.Context) {
+	id := c.Param("muscleId")
+	if !validID(id) {
+		respondError(c, apperror.ErrValidation)
+		return
+	}
+	if err := h.repository.Delete(c.Request.Context(), middleware.UserID(c), id); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *MuscleHandler) Reorder(c *gin.Context) {
+	var request reorderRequest
+	if !bindJSON(c, &request) {
+		return
+	}
+	if err := validateOrderedIDs(request.OrderedIDs); err != nil {
+		respondError(c, err)
+		return
+	}
+	if err := h.repository.Reorder(c.Request.Context(), middleware.UserID(c), request.OrderedIDs); err != nil {
+		respondError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func validateOrderedIDs(ids []string) error {
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if !validID(id) {
+			return apperror.ErrValidation
+		}
+		if _, exists := seen[id]; exists {
+			return apperror.ErrValidation
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
 }
