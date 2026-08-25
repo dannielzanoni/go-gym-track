@@ -13,7 +13,7 @@ export function AppShell() {
   const { user, logout } = useAuth()
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="min-h-dvh w-full min-w-0 overflow-x-clip bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-white/6 bg-background/82 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:h-16 sm:px-6">
           <NavLink to="/" className="flex items-center gap-2.5" aria-label="Ir para o treino">
@@ -47,7 +47,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-3 pb-28 pt-5 min-[380px]:px-4 sm:px-6 sm:pb-12 sm:pt-10">
+      <main className="mx-auto w-full min-w-0 max-w-6xl px-3 pb-28 pt-5 min-[380px]:px-4 sm:px-6 sm:pb-12 sm:pt-10">
         <Outlet />
       </main>
 

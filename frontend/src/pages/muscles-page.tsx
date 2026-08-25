@@ -1,5 +1,23 @@
-import { useState } from "react"
-import { ArrowDown, ArrowUp, Dumbbell, Plus, Save, Settings2, Trash2 } from "lucide-react"
+import { useRef, useState } from "react"
+import { flushSync } from "react-dom"
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { ArrowDown, ArrowUp, Dumbbell, GripVertical, Plus, Save, Settings2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -14,6 +32,7 @@ import { Separator } from "@/components/ui/separator"
 import { useGym } from "@/context/gym-context"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/services/http/api-error"
+import type { Muscle } from "@/types/gym"
 
 function movedIds(items: { id: string }[], from: number, to: number) {
   if (to < 0 || to >= items.length) return items.map((item) => item.id)
@@ -27,10 +46,61 @@ function errorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "Não foi possível salvar a alteração."
 }
 
+type SortableMuscleProps = {
+  muscle: Muscle
+  index: number
+  selected: boolean
+  total: number
+  onSelect: () => void
+  onMove: (from: number, to: number) => void
+}
+
+function SortableMuscle({ muscle, index, selected, total, onSelect, onMove }: SortableMuscleProps) {
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, transform, transition, isDragging } = useSortable({ id: muscle.id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "relative flex min-w-44 snap-start items-center gap-1 rounded-xl border border-transparent p-1 transition-colors lg:min-w-0",
+        selected && "border-primary/15 bg-primary/7",
+        isDragging && "z-10 border-primary/35 bg-card shadow-xl",
+      )}
+    >
+      <Button
+        ref={setActivatorNodeRef}
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="touch-none cursor-grab text-muted-foreground active:cursor-grabbing"
+        aria-label={`Arrastar ${muscle.name} para reordenar`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical />
+      </Button>
+      <button type="button" onClick={onSelect} className={cn("min-w-0 flex-1 truncate rounded-lg px-2 py-2.5 text-left text-sm font-semibold text-muted-foreground", selected && "text-foreground")}>{muscle.name}</button>
+      <div className="flex lg:flex-col">
+        <Button variant="ghost" size="icon-xs" disabled={index === 0} onClick={() => onMove(index, index - 1)} aria-label={`Mover ${muscle.name} para cima`}><ArrowUp /></Button>
+        <Button variant="ghost" size="icon-xs" disabled={index === total - 1} onClick={() => onMove(index, index + 1)} aria-label={`Mover ${muscle.name} para baixo`}><ArrowDown /></Button>
+      </div>
+    </div>
+  )
+}
+
 export function MusclesPage() {
   const gym = useGym()
   const [selectedId, setSelectedId] = useState("")
   const [deleteMuscleOpen, setDeleteMuscleOpen] = useState(false)
+  const [addingExercise, setAddingExercise] = useState(false)
+  const [newExerciseName, setNewExerciseName] = useState("Novo exercício")
+  const newExerciseInputRef = useRef<HTMLInputElement>(null)
+  const savingNewExerciseRef = useRef(false)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const selected = gym.muscles.find((muscle) => muscle.id === selectedId) ?? gym.muscles[0]
 
   async function run(operation: () => Promise<void>, success?: string) {
@@ -63,6 +133,47 @@ export function MusclesPage() {
     }, "Músculo removido")
   }
 
+  function openNewExercise() {
+    setNewExerciseName("Novo exercício")
+    flushSync(() => setAddingExercise(true))
+    newExerciseInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    newExerciseInputRef.current?.focus({ preventScroll: true })
+    newExerciseInputRef.current?.select()
+  }
+
+  async function saveNewExercise() {
+    if (!selected || savingNewExerciseRef.current) return
+    const name = newExerciseName.trim()
+    if (!name) {
+      setAddingExercise(false)
+      return
+    }
+
+    savingNewExerciseRef.current = true
+    try {
+      await gym.createExercise(selected.id, name, Array.from({ length: 4 }, (_, index) => ({ targetReps: index > 1 ? 8 : 10, targetWeight: 0 })))
+      setAddingExercise(false)
+      toast.success("Exercício adicionado")
+    } catch (error) {
+      toast.error(errorMessage(error))
+    } finally {
+      savingNewExerciseRef.current = false
+    }
+  }
+
+  function reorderMuscles(from: number, to: number) {
+    void run(() => gym.reorderMuscles(movedIds(gym.muscles, from, to)))
+  }
+
+  function handleMuscleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = gym.muscles.findIndex((muscle) => muscle.id === active.id)
+    const to = gym.muscles.findIndex((muscle) => muscle.id === over.id)
+    if (from < 0 || to < 0) return
+    void run(() => gym.reorderMuscles(arrayMove(gym.muscles, from, to).map((muscle) => muscle.id)))
+  }
+
   if (gym.loading) {
     return <div className="grid min-h-72 place-items-center"><div className="h-2 w-28 animate-pulse rounded-full bg-primary/30" aria-label="Carregando ficha" /></div>
   }
@@ -84,17 +195,23 @@ export function MusclesPage() {
       <div className="grid items-start gap-5 lg:grid-cols-[280px_1fr]">
         <Card className="gap-3 border-white/7 bg-card/70 p-3 lg:sticky lg:top-24">
           <div className="flex items-center justify-between px-2 py-1"><p className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Sua divisão</p><Badge variant="secondary">{gym.muscles.length}</Badge></div>
-          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:overflow-visible">
-            {gym.muscles.map((muscle, index) => (
-              <div key={muscle.id} className={cn("flex min-w-44 snap-start items-center gap-1 rounded-xl border border-transparent p-1 transition-colors lg:min-w-0", selected?.id === muscle.id && "border-primary/15 bg-primary/7")}>
-                <button type="button" onClick={() => setSelectedId(muscle.id)} className={cn("min-w-0 flex-1 truncate rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground", selected?.id === muscle.id && "text-foreground")}>{muscle.name}</button>
-                <div className="flex lg:flex-col">
-                  <Button variant="ghost" size="icon-xs" disabled={index === 0} onClick={() => void run(() => gym.reorderMuscles(movedIds(gym.muscles, index, index - 1)))} aria-label={`Mover ${muscle.name} para cima`}><ArrowUp /></Button>
-                  <Button variant="ghost" size="icon-xs" disabled={index === gym.muscles.length - 1} onClick={() => void run(() => gym.reorderMuscles(movedIds(gym.muscles, index, index + 1)))} aria-label={`Mover ${muscle.name} para baixo`}><ArrowDown /></Button>
-                </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMuscleDragEnd}>
+            <SortableContext items={gym.muscles.map((muscle) => muscle.id)} strategy={rectSortingStrategy}>
+              <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:flex-col lg:overflow-visible">
+                {gym.muscles.map((muscle, index) => (
+                  <SortableMuscle
+                    key={muscle.id}
+                    muscle={muscle}
+                    index={index}
+                    selected={selected?.id === muscle.id}
+                    total={gym.muscles.length}
+                    onSelect={() => setSelectedId(muscle.id)}
+                    onMove={reorderMuscles}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         </Card>
 
         {selected ? (
@@ -112,7 +229,7 @@ export function MusclesPage() {
 
             <div className="flex items-center justify-between gap-3">
               <div><p className="text-xs font-semibold uppercase tracking-[.14em] text-primary">Ficha de {selected.name}</p><h2 className="font-display mt-1 text-xl font-bold">Exercícios cadastrados</h2></div>
-              <Button variant="outline" onClick={() => void run(() => gym.createExercise(selected.id, "Novo exercício", Array.from({ length: 4 }, (_, index) => ({ targetReps: index > 1 ? 8 : 10, targetWeight: 0 }))), "Exercício adicionado")}><Plus /> Exercício</Button>
+              <Button variant="outline" disabled={addingExercise} onClick={openNewExercise}><Plus /> Novo exercício</Button>
             </div>
 
             <div className="space-y-4">
@@ -138,8 +255,8 @@ export function MusclesPage() {
                       {exercise.sets.map((set, setIndex) => (
                         <div key={set.id} className="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2 rounded-xl border border-white/6 bg-card/60 p-2.5 sm:grid-cols-[34px_1fr_1fr_auto] sm:gap-3">
                           <span className="grid h-9 place-items-center font-mono text-xs font-bold text-muted-foreground">{setIndex + 1}</span>
-                          <div className="space-y-1"><Label htmlFor={`set-reps-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Reps</Label><Input key={`${set.id}-reps-${set.reps}`} id={`set-reps-${set.id}`} type="number" min="0" defaultValue={set.reps} onBlur={(event) => { const reps = Math.max(0, Number(event.target.value) || 0); if (reps !== set.reps) void run(() => gym.updateExerciseSet(set.id, { targetReps: reps, targetWeight: set.weight })) }} className="h-9 text-center font-mono" /></div>
-                          <div className="space-y-1"><Label htmlFor={`set-weight-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Carga</Label><Input key={`${set.id}-weight-${set.weight}`} id={`set-weight-${set.id}`} type="number" min="0" step="0.5" defaultValue={set.weight} onBlur={(event) => { const weight = Math.max(0, Number(event.target.value) || 0); if (weight !== set.weight) void run(() => gym.updateExerciseSet(set.id, { targetReps: set.reps, targetWeight: weight })) }} className="h-9 text-center font-mono" /></div>
+                          <div className="space-y-1"><Label htmlFor={`set-reps-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Reps</Label><Input key={`${set.id}-reps-${set.reps}`} id={`set-reps-${set.id}`} type="number" min="0" inputMode="numeric" defaultValue={set.reps} onFocus={(event) => { if (Number(event.currentTarget.value) === 0) event.currentTarget.value = "" }} onBlur={(event) => { const reps = Math.max(0, Number(event.target.value) || 0); if (reps !== set.reps) void run(() => gym.updateExerciseSet(set.id, { targetReps: reps, targetWeight: set.weight })) }} className="h-9 text-center font-mono" /></div>
+                          <div className="space-y-1"><Label htmlFor={`set-weight-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground">Carga</Label><Input key={`${set.id}-weight-${set.weight}`} id={`set-weight-${set.id}`} type="number" min="0" step="0.5" inputMode="decimal" defaultValue={set.weight} onFocus={(event) => { if (Number(event.currentTarget.value) === 0) event.currentTarget.value = "" }} onBlur={(event) => { const weight = Math.max(0, Number(event.target.value) || 0); if (weight !== set.weight) void run(() => gym.updateExerciseSet(set.id, { targetReps: set.reps, targetWeight: weight })) }} className="h-9 text-center font-mono" /></div>
                           <div className="col-span-3 mt-1 flex items-center justify-end border-t border-white/6 pt-2 sm:col-span-1 sm:mt-0 sm:border-0 sm:pb-0.5 sm:pt-0">
                             <Button variant="ghost" size="icon-xs" disabled={setIndex === 0} onClick={() => void run(() => gym.reorderExerciseSets(exercise.id, movedIds(exercise.sets, setIndex, setIndex - 1)))} aria-label="Mover série para cima"><ArrowUp /></Button>
                             <Button variant="ghost" size="icon-xs" disabled={setIndex === exercise.sets.length - 1} onClick={() => void run(() => gym.reorderExerciseSets(exercise.id, movedIds(exercise.sets, setIndex, setIndex + 1)))} aria-label="Mover série para baixo"><ArrowDown /></Button>
@@ -153,7 +270,26 @@ export function MusclesPage() {
                 </Card>
               ))}
 
-              {!selected.exercises.length && <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-border bg-card/30 p-8 text-center"><div><Dumbbell className="mx-auto size-8 text-primary" /><p className="mt-3 font-semibold">Nenhum exercício cadastrado</p><p className="mt-1 text-sm text-muted-foreground">Adicione o primeiro exercício desta ficha.</p></div></div>}
+              {addingExercise && (
+                <Card className="gap-3 border-primary/25 bg-card/75 p-4 sm:p-5">
+                  <Label htmlFor="new-exercise-name">Nome do novo exercício</Label>
+                  <Input
+                    ref={newExerciseInputRef}
+                    id="new-exercise-name"
+                    value={newExerciseName}
+                    onChange={(event) => setNewExerciseName(event.target.value)}
+                    onBlur={() => void saveNewExercise()}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur()
+                      if (event.key === "Escape") setAddingExercise(false)
+                    }}
+                    className="h-11 font-semibold"
+                  />
+                  <p className="text-xs text-muted-foreground">Digite o nome e saia do campo para salvar.</p>
+                </Card>
+              )}
+
+              {!selected.exercises.length && !addingExercise && <div className="grid min-h-56 place-items-center rounded-2xl border border-dashed border-border bg-card/30 p-8 text-center"><div><Dumbbell className="mx-auto size-8 text-primary" /><p className="mt-3 font-semibold">Nenhum exercício cadastrado</p><p className="mt-1 text-sm text-muted-foreground">Adicione o primeiro exercício desta ficha.</p></div></div>}
             </div>
           </div>
         ) : <div className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-border text-center text-muted-foreground">Crie um músculo para começar.</div>}

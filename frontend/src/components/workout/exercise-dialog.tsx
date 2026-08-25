@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react"
-import { BarChart3, CheckCircle2 } from "lucide-react"
+import { BarChart3, CheckCircle2, Link2 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,12 +27,30 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
   const [draft, setDraft] = useState<Exercise>(() => structuredClone(exercise))
   const [chartSetId, setChartSetId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [keepWeight, setKeepWeight] = useState(false)
 
   function updateSet(setId: string, changes: Partial<Exercise["sets"][number]>) {
     setDraft((current) => ({
       ...current,
-      sets: current.sets.map((set) => set.id === setId ? { ...set, ...changes } : set),
+      sets: current.sets.map((set) => {
+        if (keepWeight && changes.weight !== undefined) return { ...set, weight: changes.weight }
+        return set.id === setId ? { ...set, ...changes } : set
+      }),
     }))
+  }
+
+  function toggleKeepWeight() {
+    setKeepWeight((current) => {
+      const next = !current
+      if (next) {
+        setDraft((draftExercise) => {
+          const lastWeight = draftExercise.sets.at(-1)?.weight
+          if (lastWeight === undefined) return draftExercise
+          return { ...draftExercise, sets: draftExercise.sets.map((set) => ({ ...set, weight: lastWeight })) }
+        })
+      }
+      return next
+    })
   }
 
   async function save() {
@@ -66,6 +84,15 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
             <Label htmlFor="exercise-name">Nome do exercício</Label>
             <Input id="exercise-name" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} className="h-10 font-semibold" />
           </div>
+          <Button
+            type="button"
+            variant={keepWeight ? "secondary" : "outline"}
+            className="mb-4 h-auto min-h-10 w-full whitespace-normal px-3 py-2"
+            aria-pressed={keepWeight}
+            onClick={toggleKeepWeight}
+          >
+            <Link2 /> {keepWeight ? "Peso mantido entre as séries" : "Manter peso entre séries"}
+          </Button>
           <div className="hidden grid-cols-[42px_1fr_1fr_42px] gap-3 px-3 pb-2 text-xs font-semibold uppercase tracking-[.14em] text-muted-foreground sm:grid">
             <span>Feita</span><span>Repetições</span><span>Carga (kg)</span><span>Hist.</span>
           </div>
@@ -87,12 +114,12 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`reps-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground sm:sr-only">Repetições</Label>
-                      <Input id={`reps-${set.id}`} type="number" min="0" inputMode="numeric" value={set.reps} onChange={(event) => updateSet(set.id, { reps: numberValue(event.target.value) })} className="h-10 text-center font-mono text-base font-bold" />
+                      <Input id={`reps-${set.id}`} type="number" min="0" inputMode="numeric" value={set.reps || ""} onChange={(event) => updateSet(set.id, { reps: numberValue(event.target.value) })} className="h-10 text-center font-mono text-base font-bold" />
                       <p className="truncate text-center text-[10px] text-muted-foreground">Anterior: <strong className="text-foreground">{previous?.reps ?? "—"} reps</strong></p>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor={`weight-${set.id}`} className="text-[10px] uppercase tracking-wide text-muted-foreground sm:sr-only">Carga</Label>
-                      <Input id={`weight-${set.id}`} type="number" min="0" step="0.5" inputMode="decimal" value={set.weight} onChange={(event) => updateSet(set.id, { weight: numberValue(event.target.value) })} className="h-10 text-center font-mono text-base font-bold" />
+                      <Input id={`weight-${set.id}`} type="number" min="0" step="0.5" inputMode="decimal" value={set.weight || ""} onChange={(event) => updateSet(set.id, { weight: numberValue(event.target.value) })} className="h-10 text-center font-mono text-base font-bold" />
                       <p className="truncate text-center text-[10px] text-muted-foreground">Anterior: <strong className="text-foreground">{previous?.weight ?? "—"} kg</strong></p>
                     </div>
                     <Button type="button" variant={chartOpen ? "default" : "outline"} size="icon" className="mb-4 size-9 min-[380px]:size-10" onClick={() => setChartSetId(chartOpen ? null : set.id)} aria-label={`Ver evolução da série ${index + 1}`}>

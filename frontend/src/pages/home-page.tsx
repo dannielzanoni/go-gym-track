@@ -174,10 +174,10 @@ export function HomePage() {
           })}
         </div>
 
-        <div className="mt-6 rounded-2xl border border-white/7 bg-card/50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-5">
+        <div className="mt-6 min-w-0 rounded-2xl border border-white/7 bg-card/50 p-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-5">
           <div className="mb-4 flex min-w-0 items-start gap-3 sm:mb-0"><span className={cn("grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground", canFinish && "bg-primary/12 text-primary")}><Info className="size-4" /></span><div><p className="text-sm font-semibold">Meta mínima: {REQUIRED_SETS} séries</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{canFinish ? `Meta atingida com ${completedSets} séries. Você já pode registrar o treino.` : `Conclua mais ${Math.max(0, REQUIRED_SETS - completedSets)} séries, em qualquer combinação de exercícios.`}</p></div></div>
-          <div className="flex flex-col gap-2 min-[380px]:flex-row sm:shrink-0">
-            {activeSession && <Button variant="ghost" className="h-12 text-destructive hover:text-destructive" disabled={sessionLoading} onClick={() => setCancelOpen(true)}><XCircle /> Cancelar sessão</Button>}
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row">
+            {activeSession && <Button variant="ghost" className="h-12 w-full text-destructive hover:text-destructive sm:w-auto" disabled={sessionLoading} onClick={() => setCancelOpen(true)}><XCircle /> Cancelar sessão</Button>}
             <Button size="lg" className="h-12 w-full rounded-xl px-7 font-bold sm:w-auto" disabled={!canFinish} onClick={() => setFinishOpen(true)}>Finalizar treino</Button>
           </div>
         </div>
