@@ -72,7 +72,7 @@ export function HomePage() {
   async function openExercise(exercise: Exercise) {
     setSessionActionLoading(true)
     try {
-      const session = activeSession ?? await workoutService.start(muscle.id)
+      const session = await workoutService.start(muscle.id)
       queryClient.setQueryData(activeSessionKey, session)
       const draftSets = session.sets
         .filter((set) => set.exerciseId === exercise.id)

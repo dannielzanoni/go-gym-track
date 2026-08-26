@@ -28,6 +28,7 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
   const [chartSetId, setChartSetId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [keepWeight, setKeepWeight] = useState(false)
+  const usesSingleDumbbell = /alter/i.test(draft.name)
 
   function updateSet(setId: string, changes: Partial<Exercise["sets"][number]>) {
     setDraft((current) => ({
@@ -74,6 +75,9 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
             <span className="grid size-10 place-items-center rounded-xl bg-primary/12 text-primary"><CheckCircle2 className="size-5" /></span>
             <div className="min-w-0 flex-1">
               <DialogTitle className="font-display truncate text-lg font-bold sm:text-xl">{draft.name}</DialogTitle>
+              <Badge variant="outline" className="mt-1.5 h-auto max-w-full whitespace-normal py-1 text-left text-[10px] leading-snug text-muted-foreground">
+                {usesSingleDumbbell ? "Peso em KG referente ao halter único" : "Peso em KG referente ao peso total somado"}
+              </Badge>
               <DialogDescription className="mt-1">Marque as séries feitas e registre a execução de hoje.</DialogDescription>
             </div>
           </div>
@@ -133,7 +137,7 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
                         <Badge variant="secondary">Últimos {Math.min(8, set.history.length)} treinos</Badge>
                       </div>
                       <Suspense fallback={<div className="h-44 animate-pulse rounded-xl bg-muted/60" />}>
-                        <SeriesChart history={set.history} />
+                        <SeriesChart key={set.id} history={set.history} />
                       </Suspense>
                     </div>
                   )}

@@ -30,7 +30,7 @@ func NewWorkoutSessionRepository(db *pgxpool.Pool) *WorkoutSessionRepository {
 
 func (r *WorkoutSessionRepository) Start(ctx context.Context, userID, muscleID string) (models.WorkoutSession, error) {
 	if active, err := r.GetActive(ctx, userID, muscleID); err == nil {
-		return active, nil
+		return r.syncPlanSets(ctx, userID, muscleID, active.ID)
 	} else if !errors.Is(err, apperror.ErrNotFound) {
 		return models.WorkoutSession{}, err
 	}
@@ -82,6 +82,62 @@ func (r *WorkoutSessionRepository) Start(ctx context.Context, userID, muscleID s
 	session.Sets = sets
 	if err := tx.Commit(ctx); err != nil {
 		return models.WorkoutSession{}, fmt.Errorf("commit workout session: %w", err)
+	}
+	return session, nil
+}
+
+func (r *WorkoutSessionRepository) syncPlanSets(ctx context.Context, userID, muscleID, sessionID string) (models.WorkoutSession, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return models.WorkoutSession{}, fmt.Errorf("begin workout session sync: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var status string
+	if err := tx.QueryRow(ctx, `
+		SELECT status
+		FROM public.workout_sessions
+		WHERE id = $1 AND user_id = $2 AND muscle_id = $3
+		FOR UPDATE
+	`, sessionID, userID, muscleID).Scan(&status); errors.Is(err, pgx.ErrNoRows) {
+		return models.WorkoutSession{}, apperror.ErrNotFound
+	} else if err != nil {
+		return models.WorkoutSession{}, fmt.Errorf("lock workout session for sync: %w", err)
+	}
+	if status != "active" {
+		return models.WorkoutSession{}, fmt.Errorf("%w: workout session is not active", apperror.ErrConflict)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO public.workout_session_sets (
+			session_id, user_id, exercise_id, exercise_set_id, exercise_name,
+			exercise_position, set_number, reps, weight
+		)
+		SELECT $1, e.user_id, e.id, es.id, e.name,
+		       e.position, es.position + 1, es.target_reps, es.target_weight
+		FROM public.exercises e
+		JOIN public.exercise_sets es ON es.exercise_id = e.id AND es.user_id = e.user_id
+		WHERE e.user_id = $2 AND e.muscle_id = $3
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM public.workout_session_sets existing
+			WHERE existing.session_id = $1 AND existing.user_id = $2
+			  AND existing.exercise_set_id = es.id
+		  )
+		ORDER BY e.position, es.position
+	`, sessionID, userID, muscleID); err != nil {
+		return models.WorkoutSession{}, fmt.Errorf("sync workout session sets: %w", err)
+	}
+
+	session, err := r.get(ctx, tx, userID, `
+		SELECT id, muscle_id, muscle_name, status, started_at, completed_at
+		FROM public.workout_sessions WHERE user_id = $1 AND id = $2
+	`, sessionID)
+	if err != nil {
+		return models.WorkoutSession{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return models.WorkoutSession{}, fmt.Errorf("commit workout session sync: %w", err)
 	}
 	return session, nil
 }
