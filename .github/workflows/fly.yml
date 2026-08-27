@@ -1,1 +1,41 @@
 
+name: Deploy backend to Fly.io
+
+  on:
+    push:
+      branches:
+        - main
+    workflow_dispatch:
+
+  permissions:
+    contents: read
+
+  concurrency:
+    group: fly-production
+    cancel-in-progress: false
+
+  jobs:
+    test-and-deploy:
+      name: Test and deploy backend
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Configure Go
+          uses: actions/setup-go@v5
+          with:
+            go-version-file: go.mod
+            cache: true
+
+        - name: Run backend tests
+          run: go test ./cmd/... ./internal/... ./migrations/...
+
+        - name: Configure Fly CLI
+          uses: superfly/flyctl-actions/setup-flyctl@master
+
+        - name: Deploy to Fly.io
+          run: flyctl deploy --remote-only
+          env:
+            FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
