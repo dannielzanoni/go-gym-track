@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { ProtectedRoute } from "@/features/auth/components/protected-route"
 
 const HomePage = lazy(() => import("@/pages/home-page").then((module) => ({ default: module.HomePage })))
+const CardioPage = lazy(() => import("@/pages/cardio-page").then((module) => ({ default: module.CardioPage })))
 const MusclesPage = lazy(() => import("@/pages/muscles-page").then((module) => ({ default: module.MusclesPage })))
 const LoginPage = lazy(() => import("@/features/auth/pages/auth-page").then((module) => ({ default: module.LoginPage })))
 const RegisterPage = lazy(() => import("@/features/auth/pages/auth-page").then((module) => ({ default: module.RegisterPage })))
@@ -20,6 +21,7 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<Suspense fallback={<PageLoading />}><HomePage /></Suspense>} />
+          <Route path="/cardio" element={<Suspense fallback={<PageLoading />}><CardioPage /></Suspense>} />
           <Route path="/muscles" element={<Suspense fallback={<PageLoading />}><MusclesPage /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

@@ -1,4 +1,4 @@
-import { Dumbbell, House, LogOut, Settings2 } from "lucide-react"
+import { Activity, Dumbbell, House, LogOut, Settings2 } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/features/auth/context/auth-context"
@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 
 const navigation = [
   { to: "/", label: "Treino", icon: House },
+  { to: "/cardio", label: "Cardio", icon: Activity },
   { to: "/muscles", label: "Músculos", icon: Settings2 },
 ]
 
@@ -52,7 +53,7 @@ export function AppShell() {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/8 bg-background/92 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:hidden" aria-label="Navegação principal">
-        <div className="mx-auto grid max-w-sm grid-cols-2 gap-2">
+        <div className="mx-auto grid max-w-sm grid-cols-3 gap-2">
           {navigation.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
