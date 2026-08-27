@@ -9,6 +9,9 @@ primary_region = 'gru'
 [build]
   dockerfile = 'Dockerfile'
 
+[deploy]
+  release_command = '/migrate'
+
 [env]
   ACCESS_TOKEN_TTL = '15m'
   APP_ENV = 'production'
