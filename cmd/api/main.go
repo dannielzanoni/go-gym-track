@@ -44,6 +44,7 @@ func main() {
 
 	router := httpserver.NewRouter(appConfig, pool, tokens, httpserver.Handlers{
 		Auth:           handlers.NewAuthHandler(authService, appConfig.CookieSecure, appConfig.RefreshTokenTTL),
+		Cardio:         handlers.NewCardioHandler(repositories.NewCardioRepository(pool)),
 		TrainingPlan:   handlers.NewTrainingPlanHandler(repositories.NewTrainingPlanRepository(pool)),
 		Muscle:         handlers.NewMuscleHandler(repositories.NewMuscleRepository(pool)),
 		Exercise:       handlers.NewExerciseHandler(repositories.NewExerciseRepository(pool)),

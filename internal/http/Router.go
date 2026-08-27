@@ -16,6 +16,7 @@ import (
 
 type Handlers struct {
 	Auth           *handlers.AuthHandler
+	Cardio         *handlers.CardioHandler
 	TrainingPlan   *handlers.TrainingPlanHandler
 	Muscle         *handlers.MuscleHandler
 	Exercise       *handlers.ExerciseHandler
@@ -62,6 +63,8 @@ func NewRouter(appConfig config.Config, pool *pgxpool.Pool, tokens *auth.TokenSe
 	protected := api.Group("")
 	protected.Use(middleware.Authenticate(tokens))
 	protected.GET("/auth/me", h.Auth.Me)
+	protected.GET("/cardio-records", h.Cardio.List)
+	protected.POST("/cardio-records", h.Cardio.Create)
 	protected.GET("/training-plan", h.TrainingPlan.Get)
 	protected.GET("/muscles", h.Muscle.GetAll)
 	protected.POST("/muscles", h.Muscle.Create)

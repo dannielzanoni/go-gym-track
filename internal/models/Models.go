@@ -76,3 +76,13 @@ type WorkoutSessionSummary struct {
 	CompletedAt   time.Time `json:"completedAt"`
 	CompletedSets int       `json:"completedSets"`
 }
+
+type CardioRecord struct {
+	ID              string    `json:"id"`
+	ActivityType    string    `json:"activityType"`
+	DurationMinutes int       `json:"durationMinutes"`
+	DistanceKM      float64   `json:"distanceKm"`
+	Calories        int       `json:"calories"`
+	OccurredAt      time.Time `json:"occurredAt"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
