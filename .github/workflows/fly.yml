@@ -1,20 +1,19 @@
-
 name: Deploy backend to Fly.io
 
-  on:
+on:
     push:
       branches:
         - main
     workflow_dispatch:
 
-  permissions:
+permissions:
     contents: read
 
-  concurrency:
+concurrency:
     group: fly-production
     cancel-in-progress: false
 
-  jobs:
+jobs:
     test-and-deploy:
       name: Test and deploy backend
       runs-on: ubuntu-latest
