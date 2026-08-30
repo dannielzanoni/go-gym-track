@@ -3,7 +3,9 @@ package handlers
 import (
 	"net/http"
 	"time"
+	_ "time/tzdata"
 
+	"go-gym-track/internal/apperror"
 	"go-gym-track/internal/middleware"
 	"go-gym-track/internal/repositories"
 
@@ -63,4 +65,45 @@ func (h *CardioHandler) List(c *gin.Context) {
 		return
 	}
 	respondData(c, http.StatusOK, records)
+}
+
+func (h *CardioHandler) Weekly(c *gin.Context) {
+	timezone := c.DefaultQuery("timezone", "America/Sao_Paulo")
+	if len(timezone) > 64 {
+		respondError(c, apperror.ErrValidation)
+		return
+	}
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		respondError(c, apperror.ErrValidation)
+		return
+	}
+
+	reference := time.Now().In(location)
+	if value := c.Query("date"); value != "" {
+		reference, err = time.ParseInLocation("2006-01-02", value, location)
+		if err != nil {
+			respondError(c, apperror.ErrValidation)
+			return
+		}
+	}
+	weekStart, weekEnd := cardioWeekBounds(reference)
+	summary, err := h.repository.WeeklySummary(
+		c.Request.Context(),
+		middleware.UserID(c),
+		weekStart,
+		weekEnd,
+		timezone,
+	)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	respondData(c, http.StatusOK, summary)
+}
+
+func cardioWeekBounds(reference time.Time) (time.Time, time.Time) {
+	daysSinceMonday := (int(reference.Weekday()) + 6) % 7
+	weekStart := time.Date(reference.Year(), reference.Month(), reference.Day()-daysSinceMonday, 0, 0, 0, 0, reference.Location())
+	return weekStart, weekStart.AddDate(0, 0, 7)
 }

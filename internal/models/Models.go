@@ -86,3 +86,19 @@ type CardioRecord struct {
 	OccurredAt      time.Time `json:"occurredAt"`
 	CreatedAt       time.Time `json:"createdAt"`
 }
+
+type CardioDaySummary struct {
+	Date            string  `json:"date"`
+	DurationMinutes int     `json:"durationMinutes"`
+	DistanceKM      float64 `json:"distanceKm"`
+	Calories        int     `json:"calories"`
+}
+
+type CardioWeekSummary struct {
+	WeekStart       string             `json:"weekStart"`
+	WeekEnd         string             `json:"weekEnd"`
+	DurationMinutes int                `json:"durationMinutes"`
+	DistanceKM      float64            `json:"distanceKm"`
+	Calories        int                `json:"calories"`
+	Days            []CardioDaySummary `json:"days"`
+}

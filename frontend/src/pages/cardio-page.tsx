@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType } from "react"
+import { useState, type ComponentType } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Activity, Bike, CalendarDays, ChartNoAxesColumnIncreasing, Clock3, Flame, Footprints, Goal, Plus, Route } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
@@ -36,14 +36,6 @@ function dateInputValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function startOfCurrentWeek() {
-  const date = new Date()
-  const daysSinceMonday = (date.getDay() + 6) % 7
-  date.setDate(date.getDate() - daysSinceMonday)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
 function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60)
   const remainingMinutes = minutes % 60
@@ -72,14 +64,10 @@ export function CardioPage() {
   const [calories, setCalories] = useState("")
   const [date, setDate] = useState(() => dateInputValue(new Date()))
 
-  const weekStart = useMemo(() => startOfCurrentWeek(), [])
-  const weekEnd = useMemo(() => {
-    const end = new Date(weekStart)
-    end.setDate(end.getDate() + 7)
-    return end
-  }, [weekStart])
+  const today = dateInputValue(new Date())
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo"
   const recentKey = ["cardio-records", user?.id, "recent"] as const
-  const weeklyKey = ["cardio-records", user?.id, "week", weekStart.toISOString()] as const
+  const weeklyKey = ["cardio-records", user?.id, "week", today, timezone] as const
 
   const recentQuery = useQuery({
     queryKey: recentKey,
@@ -87,7 +75,7 @@ export function CardioPage() {
   })
   const weeklyQuery = useQuery({
     queryKey: weeklyKey,
-    queryFn: ({ signal }) => cardioService.list({ from: weekStart.toISOString(), to: weekEnd.toISOString(), limit: 500, signal }),
+    queryFn: ({ signal }) => cardioService.weekly({ date: today, timezone, signal }),
   })
 
   const createMutation = useMutation({
@@ -103,31 +91,12 @@ export function CardioPage() {
     onError: (error) => toast.error(errorMessage(error)),
   })
 
-  const weeklyData = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat("pt-BR", { weekday: "short" })
-    return Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(weekStart)
-      day.setDate(day.getDate() + index)
-      const nextDay = new Date(day)
-      nextDay.setDate(nextDay.getDate() + 1)
-      const records = (weeklyQuery.data ?? []).filter((record) => {
-        const occurredAt = new Date(record.occurredAt)
-        return occurredAt >= day && occurredAt < nextDay
-      })
-      return {
-        day: formatter.format(day).replace(".", "").slice(0, 3),
-        minutes: records.reduce((total, record) => total + record.durationMinutes, 0),
-        distance: records.reduce((total, record) => total + record.distanceKm, 0),
-        calories: records.reduce((total, record) => total + record.calories, 0),
-      }
-    })
-  }, [weekStart, weeklyQuery.data])
-
-  const weeklyTotals = useMemo(() => weeklyData.reduce((totals, day) => ({
-    minutes: totals.minutes + day.minutes,
-    distance: totals.distance + day.distance,
-    calories: totals.calories + day.calories,
-  }), { minutes: 0, distance: 0, calories: 0 }), [weeklyData])
+  const weekdayFormatter = new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" })
+  const weeklyData = (weeklyQuery.data?.days ?? []).map((day) => ({
+    ...day,
+    day: weekdayFormatter.format(new Date(`${day.date}T12:00:00Z`)).replace(".", "").slice(0, 3),
+    minutes: day.durationMinutes,
+  }))
 
   function openDialog() {
     setActivityType("treadmill")
@@ -212,9 +181,9 @@ export function CardioPage() {
       {!loading && !hasError && view === "chart" && (
         <section className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="gap-1 border-primary/20 bg-primary/8 p-4 sm:col-span-1"><Clock3 className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Tempo total da semana</p><p className="font-display text-3xl font-black text-primary">{formatDuration(weeklyTotals.minutes)}</p></Card>
-            <Card className="gap-1 border-white/7 bg-card/70 p-4"><Route className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Distância total</p><p className="font-mono text-xl font-bold">{formatDistance(weeklyTotals.distance)} km</p></Card>
-            <Card className="gap-1 border-white/7 bg-card/70 p-4"><Flame className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Calorias totais</p><p className="font-mono text-xl font-bold">{weeklyTotals.calories} kcal</p></Card>
+            <Card className="gap-1 border-primary/20 bg-primary/8 p-4 sm:col-span-1"><Clock3 className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Tempo total da semana</p><p className="font-display text-3xl font-black text-primary">{formatDuration(weeklyQuery.data?.durationMinutes ?? 0)}</p></Card>
+            <Card className="gap-1 border-white/7 bg-card/70 p-4"><Route className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Distância total</p><p className="font-mono text-xl font-bold">{formatDistance(weeklyQuery.data?.distanceKm ?? 0)} km</p></Card>
+            <Card className="gap-1 border-white/7 bg-card/70 p-4"><Flame className="mb-2 size-5 text-primary" /><p className="text-xs text-muted-foreground">Calorias totais</p><p className="font-mono text-xl font-bold">{weeklyQuery.data?.calories ?? 0} kcal</p></Card>
           </div>
           <Card className="gap-3 border-white/7 bg-card/70 p-4 sm:p-6">
             <div><h2 className="font-display text-xl font-bold">Cardio de segunda a domingo</h2><p className="mt-1 text-xs text-muted-foreground">Cada barra representa o tempo total realizado no dia.</p></div>

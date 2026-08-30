@@ -100,3 +100,53 @@ func (r *CardioRepository) List(ctx context.Context, userID string, from, to *ti
 	}
 	return records, nil
 }
+
+func (r *CardioRepository) WeeklySummary(
+	ctx context.Context,
+	userID string,
+	weekStart, weekEnd time.Time,
+	timezone string,
+) (models.CardioWeekSummary, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT to_char(occurred_at AT TIME ZONE $4, 'YYYY-MM-DD') AS local_date,
+		       COALESCE(sum(duration_minutes), 0)::integer,
+		       COALESCE(sum(distance_km), 0)::double precision,
+		       COALESCE(sum(calories), 0)::integer
+		FROM public.cardio_records
+		WHERE user_id = $1 AND occurred_at >= $2 AND occurred_at < $3
+		GROUP BY local_date
+		ORDER BY local_date
+	`, userID, weekStart, weekEnd, timezone)
+	if err != nil {
+		return models.CardioWeekSummary{}, fmt.Errorf("summarize weekly cardio: %w", err)
+	}
+	defer rows.Close()
+
+	byDate := make(map[string]models.CardioDaySummary, 7)
+	for rows.Next() {
+		var day models.CardioDaySummary
+		if err := rows.Scan(&day.Date, &day.DurationMinutes, &day.DistanceKM, &day.Calories); err != nil {
+			return models.CardioWeekSummary{}, fmt.Errorf("scan weekly cardio summary: %w", err)
+		}
+		byDate[day.Date] = day
+	}
+	if err := rows.Err(); err != nil {
+		return models.CardioWeekSummary{}, fmt.Errorf("iterate weekly cardio summary: %w", err)
+	}
+
+	summary := models.CardioWeekSummary{
+		WeekStart: weekStart.Format("2006-01-02"),
+		WeekEnd:   weekEnd.AddDate(0, 0, -1).Format("2006-01-02"),
+		Days:      make([]models.CardioDaySummary, 0, 7),
+	}
+	for day := weekStart; day.Before(weekEnd); day = day.AddDate(0, 0, 1) {
+		date := day.Format("2006-01-02")
+		daily := byDate[date]
+		daily.Date = date
+		summary.Days = append(summary.Days, daily)
+		summary.DurationMinutes += daily.DurationMinutes
+		summary.DistanceKM += daily.DistanceKM
+		summary.Calories += daily.Calories
+	}
+	return summary, nil
+}

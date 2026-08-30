@@ -64,6 +64,7 @@ func NewRouter(appConfig config.Config, pool *pgxpool.Pool, tokens *auth.TokenSe
 	protected.Use(middleware.Authenticate(tokens))
 	protected.GET("/auth/me", h.Auth.Me)
 	protected.GET("/cardio-records", h.Cardio.List)
+	protected.GET("/cardio-records/weekly", h.Cardio.Weekly)
 	protected.POST("/cardio-records", h.Cardio.Create)
 	protected.GET("/training-plan", h.TrainingPlan.Get)
 	protected.GET("/muscles", h.Muscle.GetAll)
