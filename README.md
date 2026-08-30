@@ -8,11 +8,10 @@ with a rotating refresh token stored in an `HttpOnly` cookie.
 
 <p align="center">
   <a href="https://skillicons.dev">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=dark">
-      <source media="(prefers-color-scheme: light)" srcset="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=light">
-      <img alt="Go, React, TypeScript, Vite, Tailwind CSS, PostgreSQL, Supabase, Docker, Nginx, and Vercel" src="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=light">
-    </picture>
+    <img
+      src="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&perline=10"
+      alt="Go, React, TypeScript, Vite, Tailwind CSS, PostgreSQL, Supabase, Docker, Nginx, and Vercel"
+    />
   </a>
 </p>
 
