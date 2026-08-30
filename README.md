@@ -1,73 +1,90 @@
 # Go Gym Track
 
-Aplicação de acompanhamento de treinos com API Go/Gin, PostgreSQL e frontend
-React/Vite. Os dados são isolados por usuário e a autenticação usa JWT de curta
-duração com refresh token rotativo em cookie `HttpOnly`.
+A workout tracking application with a Go/Gin API, PostgreSQL, and a React/Vite
+frontend. Data is isolated per user, and authentication uses short-lived JWTs
+with a rotating refresh token stored in an `HttpOnly` cookie.
 
-## Estrutura
+## Tech Stack
+
+<p align="center">
+  <a href="https://skillicons.dev">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=dark">
+      <source media="(prefers-color-scheme: light)" srcset="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=light">
+      <img alt="Go, React, TypeScript, Vite, Tailwind CSS, PostgreSQL, Supabase, Docker, Nginx, and Vercel" src="https://skillicons.dev/icons?i=go,react,ts,vite,tailwind,postgres,supabase,docker,nginx,vercel&theme=light">
+    </picture>
+  </a>
+</p>
+
+- **Backend:** Go, Gin, pgx, and PostgreSQL
+- **Frontend:** React, TypeScript, Vite, and Tailwind CSS
+- **Infrastructure:** Supabase, Docker, Nginx, Vercel, Render, and Fly.io
+
+## Project Structure
 
 ```text
-cmd/api/          servidor HTTP
-cmd/migrate/      executor de migrations
-internal/         domínio, autenticação, handlers e repositories
-migrations/       schema PostgreSQL versionado
-frontend/         aplicação React
+cmd/api/          HTTP server
+cmd/migrate/      migration runner
+internal/         domain, authentication, handlers, and repositories
+migrations/       version-controlled PostgreSQL schema
+frontend/         React application
 ```
 
-O contrato detalhado da API e as decisões de arquitetura estão em
+The detailed API contract and architecture decisions are documented in
 [`frontend/.agents/api-auth-plan.md`](frontend/.agents/api-auth-plan.md).
 
-## Pré-requisitos
+## Prerequisites
 
-- Go compatível com a versão declarada em `go.mod`;
+- A Go version compatible with the one declared in `go.mod`;
 - PostgreSQL;
-- Node.js e npm para o frontend.
+- Node.js and npm for the frontend.
 
-## Configurar a API no PowerShell
+## Configure the API in PowerShell
 
-O Go lê variáveis do processo; o arquivo `.env` não é carregado automaticamente.
-Para uma sessão local de desenvolvimento, defina pelo menos:
+Go reads variables from the process environment; it does not load the `.env`
+file automatically. For a local development session, define at least:
 
 ```powershell
 $env:DATABASE_URL = "postgresql://USER:PASSWORD@HOST:5432/DATABASE"
 $env:JWT_SIGNING_KEY = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 
-As outras opções e seus valores de desenvolvimento estão em `.env.example`.
-As variáveis definidas com `$env:` duram apenas no processo atual do PowerShell e
-nos processos iniciados por ele.
+The other options and their development values are listed in `.env.example`.
+Variables defined with `$env:` last only for the current PowerShell process and
+the processes started from it.
 
-### Criar ou atualizar o banco
+### Create or Update the Database
 
 ```powershell
 go run ./cmd/migrate
 ```
 
-Antes de executar em um banco que já contém a versão antiga, faça backup. A
-primeira migration preserva o schema anterior renomeando as tabelas para
-`legacy_muscles`, `legacy_workouts` e `legacy_workout_sets`; ela não importa esses
-registros para usuários novos.
+Before running this command against a database that still contains the previous
+schema version, create a backup. The first migration preserves the old schema by
+renaming its tables to `legacy_muscles`, `legacy_workouts`, and
+`legacy_workout_sets`; it does not import those records for new users.
 
-No Supabase, a migration seguinte habilita RLS e remove o acesso dos papéis da
-Data API (`anon`, `authenticated` e `service_role`) das tabelas do GymTrack. A
-aplicação deve usar a connection string PostgreSQL do papel `postgres`; ela não
-consulta essas tabelas por `supabase-js`, REST ou GraphQL.
+On Supabase, the following migration enables RLS and revokes GymTrack table
+access from the Data API roles (`anon`, `authenticated`, and `service_role`). The
+application must use the PostgreSQL connection string for the `postgres` role;
+it does not access these tables through `supabase-js`, REST, or GraphQL.
 
-Também é possível iniciar a API com `RUN_MIGRATIONS=true`, mas o comando dedicado
-é preferível por deixar a alteração do schema explícita.
+You can also start the API with `RUN_MIGRATIONS=true`, but the dedicated command
+is preferred because it makes schema changes explicit.
 
-### Iniciar a API
+### Start the API
 
 ```powershell
 go run ./cmd/api
 ```
 
-Por padrão, a API escuta em `http://localhost:8080`. Os probes públicos são
-`GET /healthz` e `GET /readyz`; o contrato de negócio fica sob `/api/v1`.
+By default, the API listens at `http://localhost:8080`. The public probes are
+`GET /healthz` and `GET /readyz`; the application API is available under
+`/api/v1`.
 
-## Iniciar o frontend
+## Start the Frontend
 
-Em outro PowerShell:
+In another PowerShell window:
 
 ```powershell
 cd frontend
@@ -75,89 +92,88 @@ npm install
 npm run dev
 ```
 
-O Vite encaminha `/api` para `http://localhost:8080`. Para apontar para outro
-servidor, defina `VITE_API_URL`; essa variável deve conter apenas URL pública,
-nunca segredos.
+Vite proxies `/api` to `http://localhost:8080`. To target another server, set
+`VITE_API_URL`; this variable must contain only a public URL, never secrets.
 
-## Autenticação
+## Authentication
 
-- O access token JWT dura 15 minutos por padrão e existe somente em memória no
-  frontend.
-- O refresh token dura 30 dias, é salvo como hash no banco e rotacionado a cada
-  uso.
-- O navegador recebe o refresh em cookie `HttpOnly`, `SameSite=Lax` e `Secure`
-  obrigatório quando `APP_ENV=production`.
-- O frontend não usa `localStorage` nem `sessionStorage` para tokens ou treinos.
+- The JWT access token lasts 15 minutes by default and exists only in frontend
+  memory.
+- The refresh token lasts 30 days, is stored as a hash in the database, and is
+  rotated after every use.
+- The browser receives the refresh token in an `HttpOnly`, `SameSite=Lax` cookie;
+  `Secure` is required when `APP_ENV=production`.
+- The frontend does not use `localStorage` or `sessionStorage` for tokens or
+  workouts.
 
-Em produção, configure explicitamente `CORS_ALLOWED_ORIGINS`, use HTTPS e defina
+In production, explicitly configure `CORS_ALLOWED_ORIGINS`, use HTTPS, and set
 `COOKIE_SECURE=true`.
 
-## Deploy
+## Deployment
 
-### API no Render
+### API on Render
 
-O [`Dockerfile`](Dockerfile) gera um binário Go estático e o executa em uma
-imagem distroless como usuário não-root. A API usa automaticamente o `PORT`
-fornecido pelo Render e escuta em `0.0.0.0`.
+The [`Dockerfile`](Dockerfile) builds a static Go binary and runs it as a non-root
+user in a distroless image. The API automatically uses the `PORT` provided by
+Render and listens on `0.0.0.0`.
 
-O [`render.yaml`](render.yaml) permite criar o serviço como Blueprint. Antes do
-primeiro deploy, informe no painel:
+The [`render.yaml`](render.yaml) file can create the service as a Blueprint.
+Before the first deployment, provide these values in the dashboard:
 
-- `DATABASE_URL`: connection string do Supabase; em redes IPv4, prefira o
-  Session pooler na porta `5432` e inclua `sslmode=require`;
-- `CORS_ALLOWED_ORIGINS`: URL final do frontend, por exemplo
+- `DATABASE_URL`: the Supabase connection string; on IPv4 networks, prefer the
+  Session pooler on port `5432` and include `sslmode=require`;
+- `CORS_ALLOWED_ORIGINS`: the final frontend URL, for example
   `https://go-gym-track.vercel.app`.
 
-`JWT_SIGNING_KEY` é gerado pelo Render. As migrations já aplicadas não são
-executadas durante o startup porque `RUN_MIGRATIONS=false`. O health check usa
-`GET /healthz`.
+Render generates `JWT_SIGNING_KEY`. Previously applied migrations do not run at
+startup because `RUN_MIGRATIONS=false`. The health check uses `GET /healthz`.
 
-O Blueprint está configurado inicialmente para o plano `free` e região
-`virginia`. Altere a região antes da primeira criação se outra estiver mais
-próxima do projeto Supabase, pois o Render não permite mudá-la depois.
+The Blueprint initially uses the `free` plan and the `virginia` region. Choose a
+different region before creating the service if another one is closer to the
+Supabase project, because Render does not allow changing it afterward.
 
-### Frontend na Vercel
+### Frontend on Vercel
 
-Ao importar este monorepo na Vercel:
+When importing this monorepo into Vercel:
 
-1. defina **Root Directory** como `frontend`;
-2. mantenha [`Dockerfile.vercel`](frontend/Dockerfile.vercel) na raiz desse
-   projeto;
-3. crie a variável de runtime `API_UPSTREAM` com a origem do Render, sem barra
-   final, por exemplo `https://go-gym-track-api.onrender.com`;
-4. não configure `VITE_API_URL` com o domínio do Render: mantenha `/api/v1`.
+1. Set **Root Directory** to `frontend`.
+2. Keep [`Dockerfile.vercel`](frontend/Dockerfile.vercel) at that project root.
+3. Create the `API_UPSTREAM` runtime variable with the Render origin and no
+   trailing slash, for example `https://go-gym-track-api.onrender.com`.
+4. Do not set `VITE_API_URL` to the Render domain; keep it as `/api/v1`.
 
-O Nginx serve a SPA e encaminha `/api/*` ao Render. Para o navegador, frontend e
-API permanecem na mesma origem; isso permite que o refresh cookie `HttpOnly` e
-`SameSite=Lax` funcione sem depender de cookies de terceiros.
+Nginx serves the SPA and proxies `/api/*` to Render. From the browser's
+perspective, the frontend and API remain on the same origin; this allows the
+`HttpOnly`, `SameSite=Lax` refresh cookie to work without relying on third-party
+cookies.
 
-Depois que a Vercel gerar a URL definitiva, confirme esse valor em
-`CORS_ALLOWED_ORIGINS` no Render e faça um novo deploy da API. URLs variáveis de
-preview precisam ser adicionadas explicitamente caso também devam acessar a API.
+After Vercel generates the final URL, confirm that value in
+`CORS_ALLOWED_ORIGINS` on Render and redeploy the API. Preview URLs must be added
+explicitly if they also need API access.
 
-### Alternativa: API no Fly.io
+### Alternative: API on Fly.io
 
-O [`fly.toml`](fly.toml) usa o mesmo `Dockerfile`, região de São Paulo (`gru`),
-porta interna `10000` e health check em `/healthz`. Antes do primeiro deploy,
-confirme se o nome global definido em `app` está disponível e altere-o se
-necessário.
+The [`fly.toml`](fly.toml) file uses the same `Dockerfile`, the Sao Paulo region
+(`gru`), internal port `10000`, and a health check at `/healthz`. Before the first
+deployment, confirm that the global name defined in `app` is available and
+change it if necessary.
 
 ```powershell
 fly auth login
 fly launch --no-deploy
 
 fly secrets set DATABASE_URL="postgresql://.../postgres?sslmode=require"
-fly secrets set JWT_SIGNING_KEY="SEGREDO_COM_PELO_MENOS_32_CARACTERES"
-fly secrets set CORS_ALLOWED_ORIGINS="https://seu-front.vercel.app"
+fly secrets set JWT_SIGNING_KEY="SECRET_WITH_AT_LEAST_32_CHARACTERS"
+fly secrets set CORS_ALLOWED_ORIGINS="https://your-frontend.vercel.app"
 
 fly deploy
 ```
 
-Com `min_machines_running = 0`, a máquina pode parar sem tráfego e reiniciar na
-próxima requisição. Para evitar cold start, use `1`, considerando o custo de
-manter uma máquina ativa.
+With `min_machines_running = 0`, the machine may stop while idle and restart on
+the next request. To avoid a cold start, use `1` and account for the cost of
+keeping a machine running.
 
-## Validação
+## Validation
 
 ```powershell
 go test ./cmd/... ./internal/... ./migrations/...
@@ -167,5 +183,5 @@ npm run test
 npm run build
 ```
 
-Os testes Go são limitados aos pacotes do projeto para não atravessar possíveis
-pacotes Go dentro de `frontend/node_modules`.
+The Go tests are limited to project packages so they do not traverse possible Go
+packages inside `frontend/node_modules`.
