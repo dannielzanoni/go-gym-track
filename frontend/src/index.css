@@ -31,8 +31,33 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --radius: 0.75rem;
+  --background: oklch(0.975 0.006 145);
+  --foreground: oklch(0.19 0.018 150);
+  --card: oklch(0.995 0.003 145);
+  --card-foreground: oklch(0.19 0.018 150);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.018 150);
+  --primary: oklch(0.56 0.17 145);
+  --primary-foreground: oklch(0.99 0.005 145);
+  --secondary: oklch(0.935 0.012 150);
+  --secondary-foreground: oklch(0.24 0.018 150);
+  --muted: oklch(0.94 0.009 150);
+  --muted-foreground: oklch(0.48 0.018 150);
+  --accent: oklch(0.92 0.025 145);
+  --accent-foreground: oklch(0.24 0.025 150);
+  --destructive: oklch(0.57 0.22 25);
+  --border: oklch(0.22 0.015 150 / 13%);
+  --input: oklch(0.22 0.015 150 / 17%);
+  --ring: oklch(0.56 0.17 145);
+  --grid-line: oklch(0.22 0.015 150 / 4%);
+  --page-glow: oklch(0.56 0.17 145 / 10%);
+  --scrollbar: oklch(0.22 0.015 150 / 22%);
+}
+
+.dark {
+  color-scheme: dark;
   --background: oklch(0.135 0.009 155);
   --foreground: oklch(0.965 0.008 145);
   --card: oklch(0.176 0.012 155);
@@ -51,6 +76,9 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
   --ring: oklch(0.82 0.19 145);
+  --grid-line: oklch(1 0 0 / 1%);
+  --page-glow: oklch(0.82 0.19 145 / 8%);
+  --scrollbar: oklch(1 0 0 / 15%);
 }
 
 @layer base {
@@ -69,9 +97,9 @@
   body {
     @apply min-h-dvh w-full max-w-full overflow-x-hidden bg-background font-sans text-foreground antialiased;
     background-image:
-      radial-gradient(circle at 12% -10%, oklch(0.82 0.19 145 / 8%), transparent 28rem),
-      linear-gradient(oklch(1 0 0 / 1%) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(1 0 0 / 1%) 1px, transparent 1px);
+      radial-gradient(circle at 12% -10%, var(--page-glow), transparent 28rem),
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: auto, 36px 36px, 36px 36px;
     background-attachment: fixed;
   }
@@ -113,7 +141,7 @@
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
-  background: oklch(1 0 0 / 15%);
+  background: var(--scrollbar);
   background-clip: padding-box;
 }
 
