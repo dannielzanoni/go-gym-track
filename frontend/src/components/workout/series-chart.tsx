@@ -1,38 +1,39 @@
 import { useState } from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { useTranslation } from "react-i18next"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { cn } from "@/lib/utils"
 import type { SetHistory } from "@/types/gym"
 
-const chartConfig = {
-  reps: { label: "Repetições", color: "var(--primary)" },
-  weight: { label: "Peso (kg)", color: "oklch(0.76 0.17 70)" },
-} satisfies ChartConfig
-
 type ChartMode = "combined" | "weight" | "reps"
 
-const filters: { value: ChartMode; label: string }[] = [
-  { value: "combined", label: "Peso + reps" },
-  { value: "weight", label: "Somente peso" },
-  { value: "reps", label: "Somente reps" },
-]
-
 export function SeriesChart({ history }: { history: SetHistory[] }) {
+  const { t, i18n } = useTranslation()
   const [mode, setMode] = useState<ChartMode>("combined")
+  const locale = i18n.resolvedLanguage === "pt-BR" ? "pt-BR" : "en-US"
+  const chartConfig = {
+    reps: { label: t("seriesChart.repetitions"), color: "var(--primary)" },
+    weight: { label: t("seriesChart.weight"), color: "oklch(0.67 0.17 70)" },
+  } satisfies ChartConfig
+  const filters: { value: ChartMode; label: string }[] = [
+    { value: "combined", label: t("seriesChart.combined") },
+    { value: "weight", label: t("seriesChart.weightOnly") },
+    { value: "reps", label: t("seriesChart.repsOnly") },
+  ]
   const data = history.slice(-8).map((item) => ({
-    date: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(item.date)),
-    fullDate: new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(item.date)),
+    date: new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit" }).format(new Date(item.date)),
+    fullDate: new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(item.date)),
     reps: item.reps,
     weight: item.weight,
   }))
 
   if (!data.length) {
-    return <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">O histórico começa após o primeiro treino.</div>
+    return <div className="grid h-44 place-items-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">{t("seriesChart.empty")}</div>
   }
 
   return (
     <div>
-      <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl bg-muted/60 p-1" aria-label="Filtrar dados do gráfico">
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-xl bg-muted/60 p-1" aria-label={t("seriesChart.filterLabel")}>
         {filters.map((filter) => (
           <button
             key={filter.value}

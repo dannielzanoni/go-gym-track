@@ -30,6 +30,7 @@ npm run build
 - Cadastro, edição, exclusão e reordenação de músculos, exercícios e séries.
 - Cadastro, login, renovação de sessão e logout.
 - Persistência no PostgreSQL por meio da API, com retomada de treino após reload.
+- Tema claro/escuro e interface em inglês (`en-US`) ou português (`pt-BR`).
 
 ## Organização
 
@@ -39,10 +40,15 @@ npm run build
 - `src/features/auth`: sessão do usuário e rotas protegidas.
 - `src/features/gym`: contratos e operações da ficha de treino.
 - `src/features/workout`: operações da sessão de treino.
+- `src/features/preferences`: preferências de tema da interface.
+- `src/i18n`: inicialização e catálogos de tradução.
 - `src/services/http`: cliente HTTP, refresh single-flight e erros tipados.
 - `src/pages`: páginas de treino e configuração.
 - `src/types`: contratos de dados.
 - `.agents`: responsabilidades para agentes de desenvolvimento.
 
 O access token permanece apenas em memória e o refresh token fica em cookie
-`HttpOnly`; não há persistência da aplicação em Web Storage.
+`HttpOnly`. No login, “Manter conectado” controla se esse cookie persiste pelo
+TTL configurado ou somente durante a sessão do navegador. Somente as
+preferências de tema e idioma são salvas em `localStorage`; tokens, fichas e
+treinos não são persistidos em Web Storage.

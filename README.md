@@ -102,8 +102,17 @@ Vite proxies `/api` to `http://localhost:8080`. To target another server, set
   rotated after every use.
 - The browser receives the refresh token in an `HttpOnly`, `SameSite=Lax` cookie;
   `Secure` is required when `APP_ENV=production`.
+- On login, **Keep me signed in** makes that cookie persistent for the configured
+  refresh-token lifetime; otherwise it is a browser-session cookie.
 - The frontend does not use `localStorage` or `sessionStorage` for tokens or
   workouts.
+
+## Interface Preferences
+
+The interface defaults to English (`en-US`) and can be switched to Brazilian
+Portuguese (`pt-BR`). It also supports light and dark themes. Language and theme
+preferences are stored locally in the browser; authentication and workout data
+remain outside Web Storage.
 
 In production, explicitly configure `CORS_ALLOWED_ORIGINS`, use HTTPS, and set
 `COOKIE_SECURE=true`.

@@ -15,8 +15,11 @@ export type AuthSession = {
 export type LoginInput = {
   email: string
   password: string
+  rememberMe: boolean
 }
 
-export type RegisterInput = LoginInput & {
+export type RegisterInput = {
+  email: string
+  password: string
   displayName: string
 }

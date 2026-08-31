@@ -7,6 +7,8 @@ import { App } from "@/App"
 import { GymProvider } from "@/context/gym-context"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/features/auth/context/auth-context"
+import { ThemeProvider, useTheme } from "@/features/preferences/theme-context"
+import "@/i18n"
 import "@/index.css"
 
 const queryClient = new QueryClient({
@@ -16,19 +18,29 @@ const queryClient = new QueryClient({
   },
 })
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+function RootContent() {
+  const { theme } = useTheme()
+
+  return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <GymProvider>
             <TooltipProvider>
               <App />
-              <Toaster theme="dark" richColors position="top-center" />
+              <Toaster theme={theme} richColors position="top-center" />
             </TooltipProvider>
           </GymProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BrowserRouter>
+  )
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <ThemeProvider>
+      <RootContent />
+    </ThemeProvider>
   </StrictMode>,
 )

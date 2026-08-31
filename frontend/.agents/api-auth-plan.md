@@ -124,6 +124,7 @@ junto ao hash em formato versionado. Nunca armazenar ou registrar a senha.
 - `token_hash bytea not null unique`
 - `rotated_from_id uuid null references refresh_sessions(id)`
 - `expires_at timestamptz not null`
+- `persistent boolean not null default true`
 - `revoked_at timestamptz null`
 - `created_at timestamptz not null`
 - `last_used_at timestamptz null`
@@ -194,6 +195,7 @@ uma ficha.
 - `exercise_id uuid null references exercises(id) on delete set null`
 - `exercise_set_id uuid null references exercise_sets(id) on delete set null`
 - `exercise_name text not null`
+- `exercise_position integer not null`
 - `set_number integer not null`
 - `reps integer not null check (reps >= 0)`
 - `weight numeric(8,2) not null check (weight >= 0)`
@@ -237,7 +239,7 @@ por `(user_id, id)`, além dos filtros obrigatórios nos repositories.
 | Método | Endpoint | Proteção | Finalidade |
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/auth/register` | Pública | Criar usuário e iniciar sessão |
-| `POST` | `/api/v1/auth/login` | Pública | Validar credenciais, retornar access token e definir refresh cookie |
+| `POST` | `/api/v1/auth/login` | Pública | Validar credenciais, aceitar `rememberMe`, retornar access token e definir refresh cookie |
 | `POST` | `/api/v1/auth/refresh` | Refresh cookie | Rotacionar refresh e emitir novo access token |
 | `POST` | `/api/v1/auth/logout` | Refresh cookie | Revogar sessão e limpar cookie |
 | `GET` | `/api/v1/auth/me` | Bearer JWT | Retornar o usuário autenticado |
@@ -289,7 +291,7 @@ próprio.
 | `POST` | `/api/v1/muscles/:muscleId/exercises` | Criar exercício com séries iniciais opcionais |
 | `PATCH` | `/api/v1/exercises/:exerciseId` | Renomear exercício |
 | `DELETE` | `/api/v1/exercises/:exerciseId` | Excluir exercício da ficha sem apagar snapshots históricos |
-| `PATCH` | `/api/v1/muscles/:muscleId/exercises/reorder` | Reordenar exercícios atomicamente |
+| `PATCH` | `/api/v1/muscles/:muscleId/exercises/reorder` | Reordenar a ficha e sincronizar o snapshot da sessão ativa |
 
 ### Séries planejadas
 
@@ -432,6 +434,9 @@ precisar apenas verificar tokens, preferir assinatura assimétrica.
 - Rotacionar a cada uso e revogar em logout.
 - Cookie de produção: `HttpOnly; Secure; SameSite=Lax` ou `Strict`; sem `Domain`
   quando possível e com `Path=/api/v1/auth`.
+- Em login, `rememberMe=false` cria cookie de sessão (`Max-Age` ausente);
+  `rememberMe=true` usa o TTL persistente configurado. A preferência acompanha
+  a família de refresh tokens durante a rotação.
 - Respostas de autenticação usam `Cache-Control: no-store`.
 - Em desenvolvimento, documentar a exceção de `Secure=false` apenas para HTTP
   local.
