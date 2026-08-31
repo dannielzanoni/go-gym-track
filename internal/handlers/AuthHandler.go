@@ -29,8 +29,9 @@ type registerRequest struct {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Email      string `json:"email" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe *bool  `json:"rememberMe"`
 }
 
 func (h *AuthHandler) Register(c *gin.Context) {
@@ -43,7 +44,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	h.setRefreshCookie(c, result.RefreshToken)
+	h.setRefreshCookie(c, result.RefreshToken, result.Persistent)
 	c.Header("Cache-Control", "no-store")
 	respondData(c, http.StatusCreated, authResponse(result))
 }
@@ -53,12 +54,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if !bindJSON(c, &request) {
 		return
 	}
-	result, err := h.service.Login(c.Request.Context(), request.Email, request.Password)
+	rememberMe := true
+	if request.RememberMe != nil {
+		rememberMe = *request.RememberMe
+	}
+	result, err := h.service.Login(c.Request.Context(), request.Email, request.Password, rememberMe)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	h.setRefreshCookie(c, result.RefreshToken)
+	h.setRefreshCookie(c, result.RefreshToken, result.Persistent)
 	c.Header("Cache-Control", "no-store")
 	respondData(c, http.StatusOK, authResponse(result))
 }
@@ -71,7 +76,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
-	h.setRefreshCookie(c, result.RefreshToken)
+	h.setRefreshCookie(c, result.RefreshToken, result.Persistent)
 	c.Header("Cache-Control", "no-store")
 	respondData(c, http.StatusOK, authResponse(result))
 }
@@ -95,9 +100,16 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	respondData(c, http.StatusOK, user)
 }
 
-func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
+func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string, persistent bool) {
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(refreshCookieName, token, int(h.refreshTTL.Seconds()), "/api/v1/auth", "", h.cookieSecure, true)
+	c.SetCookie(refreshCookieName, token, refreshCookieMaxAge(h.refreshTTL, persistent), "/api/v1/auth", "", h.cookieSecure, true)
+}
+
+func refreshCookieMaxAge(ttl time.Duration, persistent bool) int {
+	if !persistent {
+		return 0
+	}
+	return int(ttl.Seconds())
 }
 
 func (h *AuthHandler) clearRefreshCookie(c *gin.Context) {

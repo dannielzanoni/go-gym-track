@@ -22,6 +22,7 @@ type AuthResult struct {
 	AccessExpiresAt  time.Time
 	RefreshToken     string
 	RefreshExpiresAt time.Time
+	Persistent       bool
 }
 
 type AuthService struct {
@@ -62,10 +63,10 @@ func (s *AuthService) Register(ctx context.Context, email, displayName, password
 	if err != nil {
 		return AuthResult{}, err
 	}
-	return s.startSession(ctx, user)
+	return s.startSession(ctx, user, true)
 }
 
-func (s *AuthService) Login(ctx context.Context, email, password string) (AuthResult, error) {
+func (s *AuthService) Login(ctx context.Context, email, password string, rememberMe bool) (AuthResult, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
@@ -75,7 +76,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (AuthRe
 	if err != nil || !valid {
 		return AuthResult{}, apperror.ErrUnauthorized
 	}
-	return s.startSession(ctx, user)
+	return s.startSession(ctx, user, rememberMe)
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (AuthResult, error) {
@@ -88,7 +89,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (AuthRes
 	}
 	now := time.Now().UTC()
 	refreshExpiresAt := now.Add(s.refreshTTL)
-	user, err := s.sessions.Rotate(
+	user, persistent, err := s.sessions.Rotate(
 		ctx,
 		auth.HashRefreshToken(refreshToken),
 		uuid.NewString(),
@@ -108,6 +109,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (AuthRes
 		AccessExpiresAt:  accessExpiresAt,
 		RefreshToken:     newToken,
 		RefreshExpiresAt: refreshExpiresAt,
+		Persistent:       persistent,
 	}, nil
 }
 
@@ -122,7 +124,7 @@ func (s *AuthService) Me(ctx context.Context, userID string) (models.User, error
 	return s.users.GetByID(ctx, userID)
 }
 
-func (s *AuthService) startSession(ctx context.Context, user models.User) (AuthResult, error) {
+func (s *AuthService) startSession(ctx context.Context, user models.User, persistent bool) (AuthResult, error) {
 	refreshToken, refreshHash, err := auth.NewRefreshToken()
 	if err != nil {
 		return AuthResult{}, err
@@ -137,6 +139,7 @@ func (s *AuthService) startSession(ctx context.Context, user models.User) (AuthR
 		user.ID,
 		refreshHash,
 		refreshExpiresAt,
+		persistent,
 	); err != nil {
 		return AuthResult{}, err
 	}
@@ -150,6 +153,7 @@ func (s *AuthService) startSession(ctx context.Context, user models.User) (AuthR
 		AccessExpiresAt:  accessExpiresAt,
 		RefreshToken:     refreshToken,
 		RefreshExpiresAt: refreshExpiresAt,
+		Persistent:       persistent,
 	}, nil
 }
 

@@ -171,6 +171,15 @@ func (r *ExerciseRepository) Reorder(ctx context.Context, userID, muscleID strin
 		if result.RowsAffected() != 1 {
 			return fmt.Errorf("%w: invalid exercise in orderedIds", apperror.ErrValidation)
 		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE public.workout_session_sets wss
+			SET exercise_position = $4, updated_at = now()
+			FROM public.workout_sessions ws
+			WHERE wss.session_id = ws.id AND wss.exercise_id = $1 AND wss.user_id = $2
+			  AND ws.user_id = $2 AND ws.muscle_id = $3 AND ws.status = 'active'
+		`, id, userID, muscleID, position); err != nil {
+			return fmt.Errorf("reorder active workout exercise: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit exercise reorder: %w", err)
