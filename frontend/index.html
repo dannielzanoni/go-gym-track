@@ -1,10 +1,22 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en-US">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#090b0a" />
-    <meta name="description" content="Registre seus treinos, séries, repetições e evolução de carga." />
+    <meta name="description" content="Track your workouts, sets, repetitions, and weight progression." />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem("gymtrack_theme")
+          const dark = stored === "dark" || (stored !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)
+          document.documentElement.classList.toggle("dark", dark)
+          document.documentElement.style.colorScheme = dark ? "dark" : "light"
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#090b0a" : "#f5f8f5")
+        } catch { /* Preferences remain available after React starts. */ }
+      })()
+    </script>
     <title>GymTrack</title>
   </head>
   <body>
