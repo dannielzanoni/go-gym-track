@@ -217,6 +217,30 @@ export function HomePage() {
     }
   }
 
+  async function saveSetCompletion(sessionSetId: string, completed: boolean) {
+    if (!activeSession) throw new Error(t("home.sessionNotStarted"))
+    const previousSet = activeSession.sets.find((set) => set.id === sessionSetId)
+    queryClient.setQueryData<WorkoutSession | null>(activeSessionKey, (current) => current ? {
+      ...current,
+      sets: current.sets.map((set) => set.id === sessionSetId ? { ...set, completed } : set),
+    } : current)
+    try {
+      const updatedSet = await workoutService.updateSet(activeSession.id, sessionSetId, { completed })
+      queryClient.setQueryData<WorkoutSession | null>(activeSessionKey, (current) => current ? {
+        ...current,
+        sets: current.sets.map((set) => set.id === updatedSet.id ? updatedSet : set),
+      } : current)
+    } catch (error) {
+      if (previousSet) {
+        queryClient.setQueryData<WorkoutSession | null>(activeSessionKey, (current) => current ? {
+          ...current,
+          sets: current.sets.map((set) => set.id === sessionSetId ? previousSet : set),
+        } : current)
+      }
+      throw error
+    }
+  }
+
   async function confirmFinish() {
     if (!activeSession) return
     try {
@@ -302,7 +326,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {editingExercise && <ExerciseDialog key={`${activeSession?.id}-${editingExercise.id}`} exercise={editingExercise} open onOpenChange={(open) => !open && setEditingExercise(null)} onSave={saveExercise} />}
+      {editingExercise && <ExerciseDialog key={`${activeSession?.id}-${editingExercise.id}`} exercise={editingExercise} open onOpenChange={(open) => !open && setEditingExercise(null)} onSave={saveExercise} onSetCompletionChange={saveSetCompletion} />}
 
       <AlertDialog open={finishOpen} onOpenChange={setFinishOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogMedia><Trophy className="text-primary" /></AlertDialogMedia><AlertDialogTitle>{t("home.finishTitle", { muscle: muscle.name })}</AlertDialogTitle><AlertDialogDescription>{t("home.finishDescription", { count: completedSets })}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>{t("home.keepTraining")}</AlertDialogCancel><AlertDialogAction onClick={() => void confirmFinish()}>{t("home.confirmFinish")}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
 

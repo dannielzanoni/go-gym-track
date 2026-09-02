@@ -45,6 +45,13 @@ function formatDistance(value: number, locale: string) {
   return value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
+function parseDistance(value: string) {
+  const normalized = value.trim().replace(",", ".")
+  if (!normalized) return 0
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
+
 export function CardioPage() {
   const { user } = useAuth()
   const { t, i18n } = useTranslation()
@@ -114,12 +121,17 @@ export function CardioPage() {
       toast.error(parsedMinutes > 59 ? t("cardio.invalidMinutes") : t("cardio.invalidDuration"))
       return
     }
+    const distanceKm = parseDistance(distance)
+    if (distanceKm === null) {
+      toast.error(t("cardio.invalidDistance"))
+      return
+    }
 
     const selectedDate = date === dateInputValue(new Date()) ? new Date() : new Date(`${date}T12:00:00`)
     createMutation.mutate({
       activityType,
       durationMinutes,
-      distanceKm: Math.max(0, Number(distance) || 0),
+      distanceKm,
       calories: Math.max(0, Math.round(Number(calories) || 0)),
       occurredAt: selectedDate.toISOString(),
     })
@@ -211,7 +223,7 @@ export function CardioPage() {
               <div className="space-y-1.5"><Label htmlFor="cardio-minutes">{t("cardio.minuteField")}</Label><Input id="cardio-minutes" type="number" min="0" max="59" inputMode="numeric" value={minutes} onChange={(event) => setMinutes(event.target.value)} className="h-11 font-mono" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label htmlFor="cardio-distance">{t("cardio.distanceKm")}</Label><Input id="cardio-distance" type="number" min="0" step="0.01" inputMode="decimal" value={distance} onChange={(event) => setDistance(event.target.value)} className="h-11 font-mono" /></div>
+              <div className="space-y-1.5"><Label htmlFor="cardio-distance">{t("cardio.distanceKm")}</Label><Input id="cardio-distance" type="text" inputMode="decimal" value={distance} onChange={(event) => setDistance(event.target.value)} className="h-11 font-mono" /></div>
               <div className="space-y-1.5"><Label htmlFor="cardio-calories">{t("cardio.caloriesKcal")}</Label><Input id="cardio-calories" type="number" min="0" inputMode="numeric" value={calories} onChange={(event) => setCalories(event.target.value)} className="h-11 font-mono" /></div>
             </div>
           </div>

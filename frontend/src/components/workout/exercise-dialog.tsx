@@ -18,6 +18,7 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (exercise: Exercise) => Promise<void> | void
+  onSetCompletionChange: (setId: string, completed: boolean) => Promise<void>
 }
 
 function numberValue(value: string) {
@@ -25,11 +26,12 @@ function numberValue(value: string) {
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
 }
 
-export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) {
+export function ExerciseDialog({ exercise, open, onOpenChange, onSave, onSetCompletionChange }: Props) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<Exercise>(() => structuredClone(exercise))
   const [chartSetId, setChartSetId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [savingSetIds, setSavingSetIds] = useState<Set<string>>(() => new Set())
   const [keepWeight, setKeepWeight] = useState(false)
   const usesSingleDumbbell = /alter|dumbbell/i.test(draft.name)
 
@@ -41,6 +43,26 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
         return set.id === setId ? { ...set, ...changes } : set
       }),
     }))
+  }
+
+  async function changeSetCompletion(setId: string, completed: boolean) {
+    if (savingSetIds.has(setId)) return
+
+    const previousCompleted = draft.sets.find((set) => set.id === setId)?.completed ?? !completed
+    updateSet(setId, { completed })
+    setSavingSetIds((current) => new Set(current).add(setId))
+    try {
+      await onSetCompletionChange(setId, completed)
+    } catch (error) {
+      updateSet(setId, { completed: previousCompleted })
+      toast.error(localizedError(error, t, "exerciseDialog.saveError"))
+    } finally {
+      setSavingSetIds((current) => {
+        const next = new Set(current)
+        next.delete(setId)
+        return next
+      })
+    }
   }
 
   function toggleKeepWeight() {
@@ -113,7 +135,8 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
                     <div className="flex h-10 flex-col items-center justify-center gap-1">
                       <Checkbox
                         checked={set.completed}
-                        onCheckedChange={(checked: boolean) => updateSet(set.id, { completed: checked })}
+                        disabled={savingSetIds.has(set.id)}
+                        onCheckedChange={(checked: boolean) => void changeSetCompletion(set.id, checked)}
                         aria-label={t("exerciseDialog.markSetDone", { number: index + 1 })}
                         className="size-5"
                       />
@@ -152,7 +175,7 @@ export function ExerciseDialog({ exercise, open, onOpenChange, onSave }: Props) 
 
         <DialogFooter className="m-0 grid grid-cols-2 px-3 py-3 sm:flex sm:px-6 sm:py-4">
           <Button className="h-11 w-full sm:h-8 sm:w-auto" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
-          <Button className="h-11 w-full sm:h-8 sm:w-auto" disabled={saving} onClick={() => void save()}>{saving ? t("common.saving") : t("common.saveChanges")}</Button>
+          <Button className="h-11 w-full sm:h-8 sm:w-auto" disabled={saving || savingSetIds.size > 0} onClick={() => void save()}>{saving ? t("common.saving") : t("common.saveChanges")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
